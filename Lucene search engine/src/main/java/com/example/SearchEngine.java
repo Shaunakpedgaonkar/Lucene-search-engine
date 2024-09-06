@@ -1,0 +1,60 @@
+package com.example;
+
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.core.SimpleAnalyzer;
+import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
+import org.apache.lucene.analysis.en.EnglishAnalyzer;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.search.similarities.BM25Similarity;
+import org.apache.lucene.search.similarities.ClassicSimilarity;
+import org.apache.lucene.search.similarities.Similarity;
+import org.apache.lucene.search.similarities.LMDirichletSimilarity;
+import org.apache.lucene.search.similarities.LMJelinekMercerSimilarity;
+import org.apache.lucene.search.similarities.MultiSimilarity;
+
+import java.io.IOException;
+
+public class SearchEngine {
+    private static final String INDEX_DIRECTORY = "./index";
+
+    // Analyzers to use.
+    private static final Analyzer[] ANALYZERS = {
+            new CustomAnalyzer(),
+            new StandardAnalyzer(), // splits tokens at punctuation, whitespace, and lowercases.
+            new WhitespaceAnalyzer(), // splits tokens at whitespace.
+            new EnglishAnalyzer(), // splits tokens punctuation, whitespace, lowercases, and removes English stop words.
+            new SimpleAnalyzer(), // splits tokens at non-alphanumeric characters and lowercases.
+    };
+
+    // Scorers to use.
+    private static final Similarity[] SCORERS = {
+            new ClassicSimilarity(),
+            new BM25Similarity(),
+            new LMDirichletSimilarity(),
+            new LMJelinekMercerSimilarity(0.7f),
+            new MultiSimilarity(new Similarity[]{new ClassicSimilarity(), new BM25Similarity()}),
+            new MultiSimilarity(new Similarity[]{new ClassicSimilarity(), new LMDirichletSimilarity()}),
+            new MultiSimilarity(new Similarity[]{new BM25Similarity(), new LMDirichletSimilarity()})
+    };
+
+    /**
+     * Main method for SearchEngine.
+     */
+    public static void main(String[] args) throws Exception {
+        Indexer indexer = new Indexer();
+
+        // Use all analyzer-scorer combinations.
+        for (Analyzer analyzer : ANALYZERS) {
+            for (Similarity scorer : SCORERS) {
+                try {
+                    indexer.indexDocuments(INDEX_DIRECTORY, analyzer, scorer);
+                    Querier querier = new Querier("./data/topics/topics.txt");
+                    querier.queryIndex(INDEX_DIRECTORY, analyzer, scorer);
+                } catch (IOException e) {
+                    // Handle the exception or log it
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+}
